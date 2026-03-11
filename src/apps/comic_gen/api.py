@@ -637,6 +637,7 @@ class RefinePromptRequest(BaseModel):
     frame_id: str
     raw_prompt: str
     assets: list = []  # List of asset references
+    feedback: str = ""  # User feedback for iterative refinement
 
 
 @app.post("/projects/{script_id}/storyboard/refine_prompt")
@@ -647,10 +648,11 @@ async def refine_storyboard_prompt(script_id: str, request: RefinePromptRequest)
     """
     try:
         result = pipeline.refine_frame_prompt(
-            script_id, 
-            request.frame_id, 
-            request.raw_prompt, 
-            request.assets
+            script_id,
+            request.frame_id,
+            request.raw_prompt,
+            request.assets,
+            request.feedback
         )
         return result
     except ValueError as e:
@@ -1439,6 +1441,7 @@ async def get_style_presets():
 
 class PolishVideoPromptRequest(BaseModel):
     draft_prompt: str
+    feedback: str = ""  # User feedback for iterative refinement
 
 
 @app.post("/video/polish_prompt")
@@ -1446,7 +1449,7 @@ async def polish_video_prompt(request: PolishVideoPromptRequest):
     """Polishes a video generation prompt using LLM. Returns bilingual prompts."""
     try:
         processor = ScriptProcessor()
-        result = processor.polish_video_prompt(request.draft_prompt)
+        result = processor.polish_video_prompt(request.draft_prompt, request.feedback)
         return {
             "prompt_cn": result.get("prompt_cn", ""),
             "prompt_en": result.get("prompt_en", "")
@@ -1464,6 +1467,7 @@ class RefSlot(BaseModel):
 class PolishR2VPromptRequest(BaseModel):
     draft_prompt: str
     slots: List[RefSlot]
+    feedback: str = ""  # User feedback for iterative refinement
 
 
 @app.post("/video/polish_r2v_prompt")
@@ -1472,7 +1476,7 @@ async def polish_r2v_prompt(request: PolishR2VPromptRequest):
     try:
         processor = ScriptProcessor()
         slot_info = [{"description": s.description} for s in request.slots]
-        result = processor.polish_r2v_prompt(request.draft_prompt, slot_info)
+        result = processor.polish_r2v_prompt(request.draft_prompt, slot_info, request.feedback)
         return {
             "prompt_cn": result.get("prompt_cn", ""),
             "prompt_en": result.get("prompt_en", "")

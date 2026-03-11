@@ -362,10 +362,11 @@ function StoryboardInspector() {
     // State for bilingual polish results
     const [polishedPrompts, setPolishedPrompts] = useState<Record<string, { cn: string; en: string }>>({});
     const [isPolishing, setIsPolishing] = useState(false);
+    const [feedbackText, setFeedbackText] = useState("");
 
     const polishedPrompt = selectedFrame ? polishedPrompts[selectedFrame.id] : null;
 
-    const handlePolish = async () => {
+    const handlePolish = async (feedback: string = "") => {
         if (!selectedFrame || !currentProject) return;
         setIsPolishing(true);
 
@@ -388,16 +389,20 @@ function StoryboardInspector() {
             });
         }
 
-        const draft = selectedFrame.image_prompt || selectedFrame.action_description;
+        // Use current polished result as draft when refining with feedback
+        const draft = feedback
+            ? (polishedPrompt?.en || selectedFrame.image_prompt || selectedFrame.action_description)
+            : (selectedFrame.image_prompt || selectedFrame.action_description);
 
         try {
             // Use new bilingual refine API
-            const res = await api.refineFramePrompt(currentProject.id, selectedFrame.id, draft, assets);
+            const res = await api.refineFramePrompt(currentProject.id, selectedFrame.id, draft, assets, feedback);
             if (res.prompt_cn && res.prompt_en) {
                 setPolishedPrompts(prev => ({
                     ...prev,
                     [selectedFrame.id]: { cn: res.prompt_cn, en: res.prompt_en }
                 }));
+                setFeedbackText("");
             }
         } catch (err) {
             console.error("Polish failed", err);
@@ -667,7 +672,7 @@ function StoryboardInspector() {
                         <Wand2 size={10} /> Auto-Compose
                     </button>
                     <button
-                        onClick={handlePolish}
+                        onClick={() => handlePolish()}
                         disabled={isPolishing}
                         className="flex items-center gap-1 text-[10px] bg-purple-600 hover:bg-purple-700 px-2 py-1 rounded text-white transition-colors ml-2 disabled:opacity-50"
                         title="AI Polish Prompt"
@@ -763,6 +768,32 @@ function StoryboardInspector() {
                             <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap bg-black/20 p-2 rounded font-mono">
                                 {polishedPrompt.en}
                             </p>
+                        </div>
+
+                        {/* Feedback for iterative refinement */}
+                        <div className="space-y-2 pt-2 border-t border-purple-500/20">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={feedbackText}
+                                    onChange={(e) => setFeedbackText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && feedbackText.trim()) {
+                                            handlePolish(feedbackText.trim());
+                                        }
+                                    }}
+                                    placeholder="哪里不满意？描述你的修改意见..."
+                                    className="flex-1 text-[10px] bg-black/30 border border-purple-500/20 rounded px-2 py-1.5 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
+                                />
+                                <button
+                                    onClick={() => handlePolish(feedbackText.trim())}
+                                    disabled={isPolishing || !feedbackText.trim()}
+                                    className="text-[10px] text-white bg-purple-600 hover:bg-purple-500 px-2 py-1.5 rounded font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                    {isPolishing ? <Sparkles size={8} className="animate-spin" /> : <Sparkles size={8} />}
+                                    再润色
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 )}

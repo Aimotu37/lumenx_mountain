@@ -867,7 +867,7 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
-    def refine_frame_prompt(self, script_id: str, frame_id: str, raw_prompt: str, assets: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def refine_frame_prompt(self, script_id: str, frame_id: str, raw_prompt: str, assets: List[Dict[str, Any]], feedback: str = "") -> Dict[str, Any]:
         """
         Refines a raw prompt into bilingual (CN/EN) prompts using LLM.
         Also updates the frame with the refined prompts.
@@ -875,11 +875,11 @@ class ComicGenPipeline:
         script = self.scripts.get(script_id)
         if not script:
             raise ValueError("Script not found")
-        
+
         logger.debug(f"Refining prompt for frame {frame_id}")
-        
+
         # Call LLM to refine prompt
-        result = self.script_processor.polish_storyboard_prompt(raw_prompt, assets)
+        result = self.script_processor.polish_storyboard_prompt(raw_prompt, assets, feedback)
         
         # Find and update the frame
         frame_found = False

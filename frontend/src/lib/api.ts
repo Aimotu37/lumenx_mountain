@@ -347,16 +347,18 @@ export const api = {
     },
 
     // NOTE: polishPrompt removed - use refineFramePrompt for storyboard prompts
-    polishVideoPrompt: async (draftPrompt: string) => {
+    polishVideoPrompt: async (draftPrompt: string, feedback: string = "") => {
         const res = await axios.post(`${API_URL}/video/polish_prompt`, {
-            draft_prompt: draftPrompt
+            draft_prompt: draftPrompt,
+            feedback: feedback
         });
         return res.data;
     },
-    polishR2VPrompt: async (draftPrompt: string, slots: { description: string }[]) => {
+    polishR2VPrompt: async (draftPrompt: string, slots: { description: string }[], feedback: string = "") => {
         const res = await axios.post(`${API_URL}/video/polish_r2v_prompt`, {
             draft_prompt: draftPrompt,
-            slots: slots
+            slots: slots,
+            feedback: feedback
         });
         return res.data;
     },
@@ -435,11 +437,12 @@ export const api = {
      * Refines a raw prompt into bilingual (CN/EN) prompts using AI.
      * Returns { prompt_cn, prompt_en, frame_updated }.
      */
-    refineFramePrompt: async (scriptId: string, frameId: string, rawPrompt: string, assets: any[] = []) => {
+    refineFramePrompt: async (scriptId: string, frameId: string, rawPrompt: string, assets: any[] = [], feedback: string = "") => {
         const res = await axios.post(`${API_URL}/projects/${scriptId}/storyboard/refine_prompt`, {
             frame_id: frameId,
             raw_prompt: rawPrompt,
-            assets: assets
+            assets: assets,
+            feedback: feedback
         });
         return res.data;
     },

@@ -151,9 +151,11 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
     const [showCameraDropdown, setShowCameraDropdown] = useState(false);
     const [polishedPrompt, setPolishedPrompt] = useState<{ cn: string; en: string } | null>(null);
     const [isPolishing, setIsPolishing] = useState(false);
+    const [feedbackText, setFeedbackText] = useState("");
 
-    const handlePolish = async () => {
-        if (!prompt) return;
+    const handlePolish = async (feedback: string = "") => {
+        const draftPrompt = feedback ? (polishedPrompt?.en || prompt) : prompt;
+        if (!draftPrompt) return;
         setIsPolishing(true);
         try {
             let res;
@@ -164,13 +166,14 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                     .map((slot) => ({
                         description: slot.name || 'Unknown character'
                     }));
-                res = await api.polishR2VPrompt(prompt, slotInfo);
+                res = await api.polishR2VPrompt(draftPrompt, slotInfo, feedback);
             } else {
                 // I2V mode: use video polish
-                res = await api.polishVideoPrompt(prompt);
+                res = await api.polishVideoPrompt(draftPrompt, feedback);
             }
             if (res.prompt_cn && res.prompt_en) {
                 setPolishedPrompt({ cn: res.prompt_cn, en: res.prompt_en });
+                setFeedbackText("");
             }
         } catch (error) {
             console.error("Polish failed", error);
@@ -937,7 +940,7 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                                     </div>
                                 )}
                                 <button
-                                    onClick={handlePolish}
+                                    onClick={() => handlePolish()}
                                     disabled={isPolishing || !prompt}
                                     className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 disabled:opacity-50"
                                 >
@@ -1063,6 +1066,32 @@ export default function VideoCreator({ onTaskCreated, remixData, onRemixClear, p
                                         <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap bg-black/20 p-2 rounded font-mono">
                                             {polishedPrompt.en}
                                         </p>
+                                    </div>
+
+                                    {/* Feedback for iterative refinement */}
+                                    <div className="space-y-2 pt-2 border-t border-purple-500/20">
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={feedbackText}
+                                                onChange={(e) => setFeedbackText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" && feedbackText.trim()) {
+                                                        handlePolish(feedbackText.trim());
+                                                    }
+                                                }}
+                                                placeholder="哪里不满意？描述你的修改意见..."
+                                                className="flex-1 text-xs bg-black/30 border border-purple-500/20 rounded px-2 py-1.5 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50"
+                                            />
+                                            <button
+                                                onClick={() => handlePolish(feedbackText.trim())}
+                                                disabled={isPolishing || !feedbackText.trim()}
+                                                className="text-xs text-white bg-purple-600 hover:bg-purple-500 px-3 py-1.5 rounded font-medium flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                            >
+                                                {isPolishing ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />}
+                                                再润色
+                                            </button>
+                                        </div>
                                     </div>
                                 </motion.div>
                             )}

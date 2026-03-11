@@ -710,7 +710,7 @@ Props:
             }
         ]
 
-    def polish_storyboard_prompt(self, draft_prompt: str, assets: List[Dict[str, Any]]) -> Dict[str, str]:
+    def polish_storyboard_prompt(self, draft_prompt: str, assets: List[Dict[str, Any]], feedback: str = "") -> Dict[str, str]:
         """
         Polishes the storyboard prompt using Qwen-Plus, incorporating asset references.
         Returns a dict with 'prompt_cn' and 'prompt_en'.
@@ -773,6 +773,16 @@ Return STRICTLY a JSON object:
 {draft_prompt}
 """
 
+        # Append feedback instruction for iterative refinement
+        if feedback and feedback.strip():
+            system_prompt += f"""
+# USER FEEDBACK
+The user has reviewed the previous result and wants the following changes:
+{feedback.strip()}
+
+Please revise based on this feedback. Only modify what the user mentioned, keep everything else unchanged.
+"""
+
         try:
             content = self.llm.chat(
                 messages=[{"role": "user", "content": system_prompt}],
@@ -799,7 +809,7 @@ Return STRICTLY a JSON object:
         except Exception as e:
             logger.error(f"Error polishing prompt: {e}", exc_info=True)
             return fallback_result
-    def polish_video_prompt(self, draft_prompt: str) -> Dict[str, str]:
+    def polish_video_prompt(self, draft_prompt: str, feedback: str = "") -> Dict[str, str]:
         """
         Polishes a video generation prompt using Qwen-Plus.
         Returns bilingual prompts {prompt_cn, prompt_en}.
@@ -834,10 +844,21 @@ Return STRICTLY a JSON object:
 """
 
         try:
+            # Build user message with optional feedback
+            user_message = draft_prompt
+            if feedback and feedback.strip():
+                user_message = f"""[当前提示词]
+{draft_prompt}
+
+[用户反馈]
+{feedback.strip()}
+
+请根据用户反馈修改提示词，只修改用户指出的问题，保持其他部分不变。"""
+
             content = self.llm.chat(
                 messages=[
                     {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': draft_prompt}
+                    {'role': 'user', 'content': user_message}
                 ],
                 response_format={'type': 'json_object'},
             ).strip()
@@ -861,7 +882,7 @@ Return STRICTLY a JSON object:
             logger.exception("Failed to polish video prompt")
             return fallback
 
-    def polish_r2v_prompt(self, draft_prompt: str, slots: List[Dict[str, str]]) -> Dict[str, str]:
+    def polish_r2v_prompt(self, draft_prompt: str, slots: List[Dict[str, str]], feedback: str = "") -> Dict[str, str]:
         """
         Polishes a R2V (Reference-to-Video) prompt using Qwen-Plus.
         R2V requires explicit character references using character1, character2, character3 tags.
@@ -918,10 +939,21 @@ OUTPUT:
 """
 
         try:
+            # Build user message with optional feedback
+            user_message = draft_prompt
+            if feedback and feedback.strip():
+                user_message = f"""[当前提示词]
+{draft_prompt}
+
+[用户反馈]
+{feedback.strip()}
+
+请根据用户反馈修改提示词，只修改用户指出的问题，保持其他部分不变。"""
+
             content = self.llm.chat(
                 messages=[
                     {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': draft_prompt}
+                    {'role': 'user', 'content': user_message}
                 ],
                 response_format={'type': 'json_object'},
             ).strip()
