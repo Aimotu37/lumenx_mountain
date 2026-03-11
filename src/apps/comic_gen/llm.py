@@ -773,19 +773,19 @@ Return STRICTLY a JSON object:
 {draft_prompt}
 """
 
-        # Append feedback instruction for iterative refinement
+        # Build user message with optional feedback (injected in user content, not system prompt)
+        user_content = system_prompt
         if feedback and feedback.strip():
-            system_prompt += f"""
-# USER FEEDBACK
-The user has reviewed the previous result and wants the following changes:
+            user_content += f"""
+[用户反馈]
 {feedback.strip()}
 
-Please revise based on this feedback. Only modify what the user mentioned, keep everything else unchanged.
+请根据用户反馈修改提示词，只修改用户指出的问题，保持其他部分不变。
 """
 
         try:
             content = self.llm.chat(
-                messages=[{"role": "user", "content": system_prompt}],
+                messages=[{"role": "user", "content": user_content}],
                 response_format={'type': 'json_object'},
             ).strip()
             logger.debug(f"Polished Prompt Raw: {content}")

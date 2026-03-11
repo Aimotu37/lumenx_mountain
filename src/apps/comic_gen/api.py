@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, List, Any
 import asyncio
 import time
@@ -637,7 +637,7 @@ class RefinePromptRequest(BaseModel):
     frame_id: str
     raw_prompt: str
     assets: list = []  # List of asset references
-    feedback: str = ""  # User feedback for iterative refinement
+    feedback: str = Field("", max_length=2000)  # User feedback for iterative refinement
 
 
 @app.post("/projects/{script_id}/storyboard/refine_prompt")
@@ -1441,7 +1441,7 @@ async def get_style_presets():
 
 class PolishVideoPromptRequest(BaseModel):
     draft_prompt: str
-    feedback: str = ""  # User feedback for iterative refinement
+    feedback: str = Field("", max_length=2000)  # User feedback for iterative refinement
 
 
 @app.post("/video/polish_prompt")
@@ -1467,7 +1467,7 @@ class RefSlot(BaseModel):
 class PolishR2VPromptRequest(BaseModel):
     draft_prompt: str
     slots: List[RefSlot]
-    feedback: str = ""  # User feedback for iterative refinement
+    feedback: str = Field("", max_length=2000)  # User feedback for iterative refinement
 
 
 @app.post("/video/polish_r2v_prompt")
