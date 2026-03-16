@@ -140,6 +140,9 @@ class Character(BaseModel):
     base_character_id: Optional[str] = Field(None, description="ID of the base character if this is a variant")
     voice_id: Optional[str] = Field(None, description="ID of the voice model to use")
     voice_name: Optional[str] = Field(None, description="Human-readable name of the voice")
+    voice_speed: float = Field(1.0, description="Default speech rate (0.5-2.0)")
+    voice_pitch: float = Field(1.0, description="Default pitch rate (0.5-2.0)")
+    voice_volume: int = Field(50, description="Default volume (0-100)")
     locked: bool = Field(False, description="Whether this asset is locked from regeneration")
     status: GenerationStatus = GenerationStatus.PENDING
 
@@ -219,6 +222,7 @@ class StoryboardFrame(BaseModel):
     video_url: Optional[str] = Field(None, description="URL of the generated video clip")
     
     audio_url: Optional[str] = Field(None, description="URL of the generated dialogue audio")
+    audio_error: Optional[str] = Field(None, description="Audio generation error message")
     sfx_url: Optional[str] = Field(None, description="URL of the generated sound effect")
     
     selected_video_id: Optional[str] = Field(None, description="ID of the selected VideoTask for this frame")

@@ -1494,6 +1494,28 @@ async def bind_voice(script_id: str, char_id: str, request: BindVoiceRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class UpdateVoiceParamsRequest(BaseModel):
+    speed: float = 1.0
+    pitch: float = 1.0
+    volume: int = 50
+
+
+@app.put("/projects/{script_id}/characters/{char_id}/voice_params", response_model=Script)
+async def update_voice_params(script_id: str, char_id: str, request: UpdateVoiceParamsRequest):
+    """Updates voice parameters for a character."""
+    script = pipeline.get_script(script_id)
+    if not script:
+        raise HTTPException(status_code=404, detail="Script not found")
+    char = next((c for c in script.characters if c.id == char_id), None)
+    if not char:
+        raise HTTPException(status_code=404, detail="Character not found")
+    char.voice_speed = request.speed
+    char.voice_pitch = request.pitch
+    char.voice_volume = request.volume
+    pipeline._save_data()
+    return signed_response(script)
+
+
 @app.get("/voices")
 async def get_voices():
     """Returns list of available voices."""
@@ -1503,13 +1525,14 @@ async def get_voices():
 class GenerateLineAudioRequest(BaseModel):
     speed: float = 1.0
     pitch: float = 1.0
+    volume: int = 50
 
 
 @app.post("/projects/{script_id}/frames/{frame_id}/audio", response_model=Script)
 async def generate_line_audio(script_id: str, frame_id: str, request: GenerateLineAudioRequest):
     """Generates audio for a specific frame with parameters."""
     try:
-        updated_script = pipeline.generate_dialogue_line(script_id, frame_id, request.speed, request.pitch)
+        updated_script = pipeline.generate_dialogue_line(script_id, frame_id, request.speed, request.pitch, request.volume)
         return signed_response(updated_script)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1754,6 +1777,45 @@ async def merge_videos(script_id: str):
         logger.error(f"[MERGE ERROR] Unexpected error: {e}")
         logger.exception("An error occurred")
         raise HTTPException(status_code=500, detail=f"Merge failed: {str(e)}")
+
+
+# ===== Export Endpoint =====
+
+class ExportRequest(BaseModel):
+    resolution: str = "1080p"
+    format: str = "mp4"
+    subtitles: str = "none"
+
+@app.post("/projects/{script_id}/export")
+async def export_project(script_id: str, request: ExportRequest):
+    """Export project video by merging all selected frame videos.
+
+    Currently delegates to the existing merge_videos pipeline.
+    resolution/format/subtitles parameters are accepted but not yet applied
+    (requires FFmpeg pipeline iteration).
+    """
+    try:
+        script = pipeline.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # If already merged, return existing URL directly
+        if script.merged_video_url:
+            return signed_response({"url": script.merged_video_url})
+
+        # Otherwise, run merge pipeline
+        merged_script = pipeline.merge_videos(script_id)
+        return signed_response({"url": merged_script.merged_video_url})
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logger.error(f"[EXPORT ERROR] {e}")
+        logger.exception("An error occurred")
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
 # ===== Art Direction Endpoints =====

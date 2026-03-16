@@ -488,13 +488,23 @@ export const api = {
         return response.json();
     },
 
-    generateLineAudio: async (scriptId: string, frameId: string, speed: number, pitch: number) => {
+    generateLineAudio: async (scriptId: string, frameId: string, speed: number, pitch: number, volume: number = 50) => {
         const response = await fetch(`${API_URL}/projects/${scriptId}/frames/${frameId}/audio`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ speed, pitch }),
+            body: JSON.stringify({ speed, pitch, volume }),
         });
         if (!response.ok) throw new Error("Failed to generate line audio");
+        return response.json();
+    },
+
+    updateVoiceParams: async (scriptId: string, charId: string, speed: number, pitch: number, volume: number) => {
+        const response = await fetch(`${API_URL}/projects/${scriptId}/characters/${charId}/voice_params`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ speed, pitch, volume }),
+        });
+        if (!response.ok) throw new Error("Failed to update voice params");
         return response.json();
     },
 

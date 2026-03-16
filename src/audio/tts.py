@@ -57,8 +57,8 @@ class TTSProcessor:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "cosyvoice-v2",
-        voice: str = "longxiaochun_v2"
+        model: str = "cosyvoice-v3-flash",
+        voice: str = "longanyang"
     ):
         """
         Initialize TTS processor

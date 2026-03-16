@@ -1,15 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, FileText, Palette, Layout, Film, Share2, Mic, Music, BookOpen, Users, Video, ArrowLeft, Settings, Key, MessageSquareCode } from "lucide-react";
+import { Palette, Layout, Film, Share2, Mic, Music, BookOpen, Users, Video, Settings, Key, MessageSquareCode } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
 import PipelineSidebar from "@/components/layout/PipelineSidebar";
 import type { BreadcrumbSegment } from "@/components/layout/BreadcrumbBar";
 import PropertiesPanel from "@/components/modules/PropertiesPanel";
 import ScriptProcessor from "@/components/modules/ScriptProcessor";
-import AssetGrid from "@/components/modules/AssetGrid";
-import Timeline from "@/components/modules/Timeline";
 import VideoGenerator from "@/components/modules/VideoGenerator";
 import VideoAssembly from "@/components/modules/VideoAssembly";
 import ConsistencyVault from "@/components/modules/ConsistencyVault";
@@ -33,7 +30,6 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
 
     const selectProject = useProjectStore((state) => state.selectProject);
     const currentProject = useProjectStore((state) => state.currentProject);
-    const updateProject = useProjectStore((state) => state.updateProject);
 
     const handleBackToHome = () => {
         window.location.hash = '';
@@ -46,9 +42,9 @@ export default function ProjectClient({ id, breadcrumbSegments }: { id: string; 
         { id: "storyboard", label: "4. Storyboard", icon: Layout },
         { id: "motion", label: "5. Motion", icon: Video },
         { id: "assembly", label: "6. Assembly", icon: Film },
-        { id: "audio", label: "7. Voice", icon: Mic },
-        { id: "mix", label: "8. Final Mix", icon: Music },
-        { id: "export", label: "9. Export", icon: Share2 },
+        { id: "audio", label: "7. Voice", icon: Mic, comingSoon: true },
+        { id: "mix", label: "8. Final Mix", icon: Music, comingSoon: true },
+        { id: "export", label: "9. Export", icon: Share2, comingSoon: true },
     ];
 
     useEffect(() => {

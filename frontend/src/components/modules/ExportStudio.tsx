@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Download, Film, Settings, CheckCircle, FileVideo, Monitor, Captions } from "lucide-react";
+import { Download, Film, CheckCircle, FileVideo, Monitor, Captions } from "lucide-react";
+import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
-import { api, API_URL } from "@/lib/api";
+import { api } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
 
 export default function ExportStudio() {
@@ -9,33 +10,28 @@ export default function ExportStudio() {
 
     const [isExporting, setIsExporting] = useState(false);
     const [exportUrl, setExportUrl] = useState<string | null>(null);
-    const [progress, setProgress] = useState(0);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     // Config State
     const [resolution, setResolution] = useState("1080p");
     const [format, setFormat] = useState("mp4");
     const [subtitles, setSubtitles] = useState("burn-in");
 
+    // If project already has a merged video, show it immediately
+    const effectiveUrl = exportUrl || currentProject?.merged_video_url || null;
+
     const handleExport = async () => {
         if (!currentProject) return;
         setIsExporting(true);
         setExportUrl(null);
-        setProgress(0);
-
-        // Simulate progress
-        const interval = setInterval(() => {
-            setProgress(prev => Math.min(prev + 5, 95));
-        }, 200);
+        setExportError(null);
 
         try {
             const result = await api.exportProject(currentProject.id, { resolution, format, subtitles });
-            clearInterval(interval);
-            setProgress(100);
             setExportUrl(result.url);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Export failed:", error);
-            clearInterval(interval);
-            setProgress(0);
+            setExportError(error?.message || "Export failed. Please check that videos have been generated.");
         } finally {
             setIsExporting(false);
         }
@@ -60,10 +56,12 @@ export default function ExportStudio() {
                                 <button
                                     key={res}
                                     onClick={() => setResolution(res)}
-                                    className={`py-3 px-4 rounded-xl border text-sm font-bold transition-all ${resolution === res
-                                        ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                                        }`}
+                                    className={clsx(
+                                        "py-3 px-4 rounded-xl border text-sm font-bold transition-all",
+                                        resolution === res
+                                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                            : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                                    )}
                                 >
                                     {res}
                                 </button>
@@ -81,10 +79,12 @@ export default function ExportStudio() {
                                 <button
                                     key={fmt}
                                     onClick={() => setFormat(fmt)}
-                                    className={`py-3 px-4 rounded-xl border text-sm font-bold uppercase transition-all ${format === fmt
-                                        ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                                        }`}
+                                    className={clsx(
+                                        "py-3 px-4 rounded-xl border text-sm font-bold uppercase transition-all",
+                                        format === fmt
+                                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                            : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                                    )}
                                 >
                                     {fmt}
                                 </button>
@@ -106,10 +106,12 @@ export default function ExportStudio() {
                                 <button
                                     key={opt.id}
                                     onClick={() => setSubtitles(opt.id)}
-                                    className={`w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-all ${subtitles === opt.id
-                                        ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                        : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
-                                        }`}
+                                    className={clsx(
+                                        "w-full py-3 px-4 rounded-xl border text-sm font-medium text-left transition-all",
+                                        subtitles === opt.id
+                                            ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                            : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                                    )}
                                 >
                                     {opt.label}
                                 </button>
@@ -137,14 +139,23 @@ export default function ExportStudio() {
                         <div className="bg-black/30 backdrop-blur-xl border border-white/10 rounded-2xl p-12 shadow-2xl">
                             <div className="w-24 h-24 border-4 border-white/10 border-t-primary rounded-full animate-spin mx-auto mb-8" />
                             <h3 className="text-2xl font-bold mb-2">Rendering Your Masterpiece</h3>
-                            <p className="text-gray-400 mb-8">Stitching video, mixing audio, and burning subtitles...</p>
-
-                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
-                            </div>
-                            <div className="mt-2 text-right text-sm font-mono text-primary">{progress}%</div>
+                            <p className="text-gray-400">Stitching video, mixing audio, and burning subtitles...</p>
                         </div>
-                    ) : exportUrl ? (
+                    ) : exportError ? (
+                        <div className="bg-black/30 backdrop-blur-xl border border-red-500/30 rounded-2xl p-12 shadow-2xl shadow-red-900/20">
+                            <div className="w-20 h-20 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Film size={40} />
+                            </div>
+                            <h3 className="text-2xl font-bold mb-2 text-white">Export Failed</h3>
+                            <p className="text-gray-400 mb-4">{exportError}</p>
+                            <button
+                                onClick={handleExport}
+                                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl font-bold transition-colors"
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    ) : effectiveUrl ? (
                         <div className="bg-black/30 backdrop-blur-xl border border-green-500/30 rounded-2xl p-12 shadow-2xl shadow-green-900/20">
                             <div className="w-20 h-20 bg-green-500/20 text-green-500 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <CheckCircle size={40} />
@@ -153,7 +164,7 @@ export default function ExportStudio() {
                             <p className="text-gray-400 mb-8">Your video is ready to be shared with the world.</p>
 
                             <a
-                                href={getAssetUrl(exportUrl)}
+                                href={getAssetUrl(effectiveUrl)}
                                 target="_blank"
                                 className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-colors shadow-lg shadow-green-600/20"
                             >

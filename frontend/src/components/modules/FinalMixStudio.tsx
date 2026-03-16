@@ -1,12 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, Music, Mic, Video, Wand2, Download, Sliders } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Play, Pause, Volume2, Music, Mic, Video, Sliders } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
-import { api } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
 
 export default function FinalMixStudio() {
     const currentProject = useProjectStore((state) => state.currentProject);
-    const updateProject = useProjectStore((state) => state.updateProject);
 
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -44,18 +42,6 @@ export default function FinalMixStudio() {
         }
         return () => clearInterval(interval);
     }, [isPlaying, duration]);
-
-    const handleGenerateSFX = async () => {
-        if (!currentProject) return;
-        try {
-            await api.generateAudio(currentProject.id); // Re-using generateAudio for now
-            // Ideally fetch updated project
-            const updated = await api.getProject(currentProject.id);
-            updateProject(currentProject.id, updated);
-        } catch (error) {
-            console.error("Failed to generate SFX", error);
-        }
-    };
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -122,16 +108,10 @@ export default function FinalMixStudio() {
                         ))}
                     </div>
 
-                    <div className="mt-auto p-4 border-t border-white/10 space-y-3">
-                        <button
-                            onClick={handleGenerateSFX}
-                            className="w-full bg-white/5 hover:bg-white/10 border border-white/5 text-xs py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-                        >
-                            <Wand2 size={14} /> Auto-Generate SFX & BGM
-                        </button>
-                        <button className="w-full bg-primary hover:bg-primary/90 text-white text-sm py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary/20">
-                            <Download size={16} /> Export Final Video
-                        </button>
+                    <div className="mt-auto p-4 border-t border-white/10">
+                        <p className="text-[11px] text-gray-500 text-center leading-relaxed">
+                            Audio mixing will be available in a future update.
+                        </p>
                     </div>
                 </div>
             </div>

@@ -221,7 +221,7 @@ export default function VideoAssembly() {
                         <button
                             onClick={handleMerge}
                             disabled={isMerging}
-                            className="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+                            className="bg-white/5 hover:bg-white/10 border border-primary/50 hover:border-primary text-primary hover:text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {isMerging ? <Loader2 className="animate-spin" /> : <Film />}
                             Merge & Proceed

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Mic, Play, Pause, Wand2, Users, Volume2, Music, Check, Settings2, Smile, Frown, Angry, Meh } from "lucide-react";
+import { Mic, Play, Pause, Wand2, Users, Volume2, Check, Settings2, AlertCircle } from "lucide-react";
+import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
-import { api, API_URL } from "@/lib/api";
+import { api } from "@/lib/api";
 import { getAssetUrl } from "@/lib/utils";
 
 export default function VoiceActingStudio() {
@@ -16,14 +17,30 @@ export default function VoiceActingStudio() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatingLineId, setGeneratingLineId] = useState<string | null>(null);
 
-    // Settings state
+    // Per-line settings override
     const [activeSettingsId, setActiveSettingsId] = useState<string | null>(null);
-    const [lineSettings, setLineSettings] = useState<Record<string, { speed: number; pitch: number }>>({});
+    const [lineSettings, setLineSettings] = useState<Record<string, { speed: number; pitch: number; volume: number }>>({});
+
+    // Per-character voice params (defaults)
+    const [charParams, setCharParams] = useState<Record<string, { speed: number; pitch: number; volume: number }>>({});
 
     useEffect(() => {
-        // Fetch available voices
         api.getVoices().then(setVoices).catch(console.error);
     }, []);
+
+    useEffect(() => {
+        if (currentProject?.characters) {
+            const params: Record<string, { speed: number; pitch: number; volume: number }> = {};
+            currentProject.characters.forEach((char: any) => {
+                params[char.id] = {
+                    speed: char.voice_speed ?? 1.0,
+                    pitch: char.voice_pitch ?? 1.0,
+                    volume: char.voice_volume ?? 50,
+                };
+            });
+            setCharParams(params);
+        }
+    }, [currentProject?.characters]);
 
     const handlePlay = (url: string) => {
         if (playingAudio === url) {
@@ -48,6 +65,24 @@ export default function VoiceActingStudio() {
         }
     };
 
+    const handleCharParamChange = (charId: string, param: string, value: number) => {
+        setCharParams(prev => ({
+            ...prev,
+            [charId]: { ...prev[charId], [param]: value }
+        }));
+    };
+
+    const saveCharParams = async (charId: string) => {
+        const params = charParams[charId];
+        if (!currentProject || !params) return;
+        try {
+            const updated = await api.updateVoiceParams(currentProject.id, charId, params.speed, params.pitch, params.volume);
+            updateProject(currentProject.id, updated);
+        } catch (error) {
+            console.error("Failed to save voice params:", error);
+        }
+    };
+
     const handleGenerateAll = async () => {
         if (!currentProject) return;
         setIsGenerating(true);
@@ -65,8 +100,8 @@ export default function VoiceActingStudio() {
         if (!currentProject) return;
         setGeneratingLineId(frameId);
         try {
-            const settings = lineSettings[frameId] || { speed: 1.0, pitch: 1.0 };
-            const updatedProject = await api.generateLineAudio(currentProject.id, frameId, settings.speed, settings.pitch);
+            const settings = lineSettings[frameId] || { speed: 1.0, pitch: 1.0, volume: 50 };
+            const updatedProject = await api.generateLineAudio(currentProject.id, frameId, settings.speed, settings.pitch, settings.volume);
             updateProject(currentProject.id, updatedProject);
         } catch (error) {
             console.error("Failed to generate line audio:", error);
@@ -74,24 +109,6 @@ export default function VoiceActingStudio() {
             setGeneratingLineId(null);
         }
     };
-
-    const insertEmotion = (emotion: string) => {
-        // Mock action: In a real app, this would insert into the text editor.
-        // For now, we'll just show a visual feedback.
-        const activeElement = document.activeElement;
-        if (activeElement && activeElement.tagName === 'TEXTAREA') {
-            // If we had a textarea, we'd insert here.
-        }
-        console.log(`[Mock] Inserted emotion: ${emotion}`);
-        // Optional: Show a temporary toast or overlay
-    };
-
-    const emotions = [
-        { label: "Happy", icon: <Smile size={14} />, color: "text-green-400" },
-        { label: "Sad", icon: <Frown size={14} />, color: "text-blue-400" },
-        { label: "Angry", icon: <Angry size={14} />, color: "text-red-400" },
-        { label: "Neutral", icon: <Meh size={14} />, color: "text-gray-400" },
-    ];
 
     return (
         <div className="flex h-full text-white">
@@ -142,6 +159,43 @@ export default function VoiceActingStudio() {
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Per-Character Voice Params */}
+                            <div className="mt-3 space-y-2">
+                                <div>
+                                    <label className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                                        Speed <span>{(charParams[char.id]?.speed ?? 1.0).toFixed(1)}x</span>
+                                    </label>
+                                    <input type="range" min="0.5" max="2.0" step="0.1"
+                                        value={charParams[char.id]?.speed ?? 1.0}
+                                        onChange={(e) => handleCharParamChange(char.id, 'speed', parseFloat(e.target.value))}
+                                        onPointerUp={() => saveCharParams(char.id)}
+                                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                                        Pitch <span>{(charParams[char.id]?.pitch ?? 1.0).toFixed(1)}</span>
+                                    </label>
+                                    <input type="range" min="0.5" max="2.0" step="0.1"
+                                        value={charParams[char.id]?.pitch ?? 1.0}
+                                        onChange={(e) => handleCharParamChange(char.id, 'pitch', parseFloat(e.target.value))}
+                                        onPointerUp={() => saveCharParams(char.id)}
+                                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="flex justify-between text-[10px] text-gray-500 mb-0.5">
+                                        Volume <span>{charParams[char.id]?.volume ?? 50}</span>
+                                    </label>
+                                    <input type="range" min="0" max="100" step="1"
+                                        value={charParams[char.id]?.volume ?? 50}
+                                        onChange={(e) => handleCharParamChange(char.id, 'volume', parseInt(e.target.value))}
+                                        onPointerUp={() => saveCharParams(char.id)}
+                                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -151,27 +205,11 @@ export default function VoiceActingStudio() {
             <div className="flex-1 flex flex-col relative">
                 {/* Toolbar */}
                 <div className="h-14 border-b border-white/10 bg-black/20 flex items-center px-6 justify-between">
-                    <div className="flex items-center gap-4">
-                        <h2 className="font-display font-bold text-lg">Script Reader</h2>
-                        <div className="h-4 w-px bg-white/10" />
-
-                        {/* Emotion Toolbar */}
-                        <div className="flex items-center gap-2">
-                            {emotions.map(emo => (
-                                <button
-                                    key={emo.label}
-                                    onClick={() => insertEmotion(emo.label)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 text-xs font-medium transition-colors ${emo.color}`}
-                                >
-                                    {emo.icon} {emo.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    <h2 className="font-display font-bold text-lg">Script Reader</h2>
                     <button
                         onClick={handleGenerateAll}
                         disabled={isGenerating}
-                        className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-50"
+                        className="bg-white/5 hover:bg-white/10 border border-primary/50 hover:border-primary text-primary hover:text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 whitespace-nowrap flex-shrink-0 transition-all disabled:opacity-50"
                     >
                         {isGenerating ? <Wand2 className="animate-spin" size={16} /> : <Mic size={16} />}
                         {isGenerating ? "Generating..." : "Generate All Audio"}
@@ -183,11 +221,10 @@ export default function VoiceActingStudio() {
                     {currentProject?.frames?.map((frame: any, index: number) => {
                         if (!frame.dialogue) return null;
 
-                        // Find speaker (simple logic: first char in frame)
                         const speakerId = frame.character_ids?.[0];
                         const speaker = currentProject.characters.find((c: any) => c.id === speakerId);
                         const isSettingsOpen = activeSettingsId === frame.id;
-                        const settings = lineSettings[frame.id] || { speed: 1.0, pitch: 1.0 };
+                        const settings = lineSettings[frame.id] || { speed: 1.0, pitch: 1.0, volume: 50 };
 
                         return (
                             <div key={frame.id} className="flex gap-4 group">
@@ -210,7 +247,10 @@ export default function VoiceActingStudio() {
 
                                 {/* Dialogue Bubble */}
                                 <div className="flex-1 max-w-3xl">
-                                    <div className={`bg-white/5 rounded-2xl rounded-tl-none p-4 border border-white/5 hover:border-white/10 transition-colors relative ${frame.audio_url ? "border-primary/30 bg-primary/5" : ""}`}>
+                                    <div className={clsx(
+                                        "bg-white/5 rounded-2xl rounded-tl-none p-4 border border-white/5 hover:border-white/10 transition-colors relative",
+                                        frame.audio_url && "border-primary/30 bg-primary/5"
+                                    )}>
 
                                         {/* Settings Popover */}
                                         {isSettingsOpen && (
@@ -244,12 +284,26 @@ export default function VoiceActingStudio() {
                                                             className="w-full"
                                                         />
                                                     </div>
+                                                    <div>
+                                                        <label className="flex justify-between text-xs text-gray-400 mb-1">
+                                                            Volume <span>{settings.volume}</span>
+                                                        </label>
+                                                        <input
+                                                            type="range" min="0" max="100" step="1"
+                                                            value={settings.volume}
+                                                            onChange={(e) => setLineSettings(prev => ({
+                                                                ...prev,
+                                                                [frame.id]: { ...settings, volume: parseInt(e.target.value) }
+                                                            }))}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
                                                     <button
                                                         onClick={() => {
                                                             handleGenerateLine(frame.id);
                                                             setActiveSettingsId(null);
                                                         }}
-                                                        className="w-full bg-primary text-white text-xs py-2 rounded-lg font-bold"
+                                                        className="w-full bg-white/5 hover:bg-white/10 border border-primary/50 hover:border-primary text-primary hover:text-white text-xs py-2 rounded-lg font-bold transition-all"
                                                     >
                                                         Regenerate with Settings
                                                     </button>
@@ -266,7 +320,10 @@ export default function VoiceActingStudio() {
                                             <div className="flex items-center gap-2 flex-shrink-0">
                                                 <button
                                                     onClick={() => setActiveSettingsId(isSettingsOpen ? null : frame.id)}
-                                                    className={`p-1.5 rounded-full hover:bg-white/10 text-gray-400 transition-colors ${isSettingsOpen ? "bg-white/10 text-white" : ""}`}
+                                                    className={clsx(
+                                                        "p-1.5 rounded-full hover:bg-white/10 text-gray-400 transition-colors",
+                                                        isSettingsOpen && "bg-white/10 text-white"
+                                                    )}
                                                 >
                                                     <Settings2 size={14} />
                                                 </button>
@@ -278,7 +335,10 @@ export default function VoiceActingStudio() {
                                                 ) : frame.audio_url ? (
                                                     <button
                                                         onClick={() => handlePlay(frame.audio_url)}
-                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${playingAudio === frame.audio_url ? "bg-primary text-white" : "bg-white/10 hover:bg-white/20 text-gray-300"}`}
+                                                        className={clsx(
+                                                            "w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                                                            playingAudio === frame.audio_url ? "bg-primary text-white" : "bg-white/10 hover:bg-white/20 text-gray-300"
+                                                        )}
                                                     >
                                                         {playingAudio === frame.audio_url ? <Pause size={14} /> : <Play size={14} />}
                                                     </button>
@@ -296,11 +356,15 @@ export default function VoiceActingStudio() {
                                         {/* Metadata Footer */}
                                         <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-gray-500">
                                             <span className="font-mono">Frame {index + 1}</span>
-                                            {frame.audio_url && (
+                                            {frame.status === "failed" ? (
+                                                <span className="flex items-center gap-1 text-red-400" title={frame.audio_error || "Generation failed"}>
+                                                    <AlertCircle size={12} /> {frame.audio_error || "Audio generation failed"}
+                                                </span>
+                                            ) : frame.audio_url ? (
                                                 <span className="flex items-center gap-1 text-green-500">
                                                     <Check size={12} /> Audio Ready
                                                 </span>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </div>
                                 </div>

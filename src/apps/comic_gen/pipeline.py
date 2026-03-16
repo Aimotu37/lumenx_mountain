@@ -2241,7 +2241,12 @@ class ComicGenPipeline:
                     speaker = next((c for c in script.characters if c.id == frame.character_ids[0]), None)
                 
                 if speaker:
-                    self.audio_generator.generate_dialogue(frame, speaker)
+                    self.audio_generator.generate_dialogue(
+                        frame, speaker,
+                        speed=speaker.voice_speed,
+                        pitch=speaker.voice_pitch,
+                        volume=speaker.voice_volume
+                    )
             
             # Generate SFX (Text-to-Audio)
             if frame.action_description:
@@ -2258,7 +2263,7 @@ class ComicGenPipeline:
         self._save_data()
         return script
 
-    def generate_dialogue_line(self, script_id: str, frame_id: str, speed: float = 1.0, pitch: float = 1.0) -> Script:
+    def generate_dialogue_line(self, script_id: str, frame_id: str, speed: float = 1.0, pitch: float = 1.0, volume: int = 50) -> Script:
         """Generates audio for a specific line with parameters."""
         script = self.scripts.get(script_id)
         if not script:
@@ -2274,7 +2279,7 @@ class ComicGenPipeline:
                 speaker = next((c for c in script.characters if c.id == frame.character_ids[0]), None)
             
             if speaker:
-                self.audio_generator.generate_dialogue(frame, speaker, speed, pitch)
+                self.audio_generator.generate_dialogue(frame, speaker, speed, pitch, volume)
                 
         self._save_data()
         return script
