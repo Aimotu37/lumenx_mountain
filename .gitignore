@@ -65,6 +65,10 @@ dist_windows/
 # OS
 Thumbs.db
 
+# Node.js
+node_modules/
+package-lock.json
+
 # Frontend (Next.js)
 frontend/node_modules/
 frontend/.next/
