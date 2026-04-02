@@ -1,3 +1,5 @@
+import base64
+import mimetypes
 import os
 import time
 import requests
@@ -64,6 +66,72 @@ class WanxModel(VideoGenModel):
         for key, value in source.items():
             if value:
                 target[key] = value
+
+    def _encode_local_image_as_data_uri(self, local_path: str) -> str:
+        mime_type, _ = mimetypes.guess_type(local_path)
+        if not mime_type:
+            mime_type = "image/png"
+        with open(local_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("ascii")
+        return f"data:{mime_type};base64,{encoded}"
+
+    def _resolve_sdk_image_input(
+        self,
+        *,
+        model_name: str,
+        img_path: Optional[str],
+        img_url: Optional[str],
+        uploader,
+    ) -> Optional[str]:
+        """
+        Resolve image input for SDK-based I2V calls.
+
+        This keeps DashScope provider-mode routing consistent for non-Wan model
+        names (e.g. Kling/Vidu via DashScope) and prevents raw local filesystem
+        paths from leaking into SDK payloads.
+        """
+        image_ref = img_path or img_url
+        if not image_ref:
+            return img_url
+
+        resolver_model = self._resolver_model_for_media(model_name)
+        backend = self._resolve_provider_backend_for_model(resolver_model)
+        temp_url_resolver = self._build_dashscope_temp_url_resolver(resolver_model)
+
+        try:
+            resolved_image = resolve_media_input(
+                image_ref,
+                model_name=resolver_model,
+                modality="image",
+                backend=backend,
+                uploader=uploader,
+                dashscope_temp_url_resolver=temp_url_resolver,
+            )
+            if resolved_image.headers:
+                logger.warning(
+                    "SDK path for model %s received additional media headers %s; "
+                    "continuing with resolved image value only.",
+                    model_name,
+                    list(resolved_image.headers.keys()),
+                )
+            return resolved_image.value
+        except Exception as e:
+            logger.warning(
+                "Failed to resolve SDK image input via provider-media for model %s: %s. "
+                "Falling back to raw image reference handling.",
+                model_name,
+                e,
+            )
+
+        local_candidate = None
+        if img_path and os.path.exists(img_path):
+            local_candidate = img_path
+        elif isinstance(img_url, str) and os.path.exists(img_url):
+            local_candidate = img_url
+
+        if local_candidate:
+            return self._encode_local_image_as_data_uri(local_candidate)
+        return img_url
 
     def _create_dashscope_temp_url(self, local_path: str, model_name: str) -> str:
         """
@@ -285,6 +353,13 @@ class WanxModel(VideoGenModel):
                 )
             else:
                 # Use SDK for other models
+                if img_path or img_url:
+                    img_url = self._resolve_sdk_image_input(
+                        model_name=final_model_name,
+                        img_path=img_path,
+                        img_url=img_url,
+                        uploader=uploader,
+                    )
                 video_url = self._generate_sdk(
                     prompt=prompt,
                     model_name=final_model_name,

@@ -229,3 +229,45 @@ class TestWanxProviderMediaIntegration:
         assert captured["upload_data"]["OSSAccessKeyId"] == "ak-xyz"
         assert captured["upload_file_name"] == "wanx_temp_upload_source.png"
         assert captured["upload_file_content"] == b"img-bytes"
+
+    def test_sdk_dashscope_proxy_model_local_image_uses_resolved_image_value(self, monkeypatch):
+        monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+        _install_fake_uploader(monkeypatch, configured=False)
+
+        captured = {}
+
+        def fake_generate_sdk(
+            self,
+            prompt,
+            model_name,
+            img_url=None,
+            size="1280*720",
+            duration=5,
+            prompt_extend=True,
+            negative_prompt=None,
+            audio_url=None,
+            watermark=False,
+            seed=None,
+            camera_motion=None,
+            subject_motion=None,
+        ):
+            captured["model_name"] = model_name
+            captured["img_url"] = img_url
+            return "https://example.com/out.mp4"
+
+        monkeypatch.setattr("src.models.wanx.WanxModel._generate_sdk", fake_generate_sdk)
+        monkeypatch.setattr("src.models.wanx.WanxModel._download_video", lambda self, *_: None)
+
+        img_path = _write_output_file("uploads/wanx_sdk_kling_local.png", base64.b64decode(PNG_1X1_BASE64))
+
+        model = WanxModel({"params": {}})
+        model.generate(
+            prompt="demo",
+            output_path="output/video/wanx_sdk_kling_local.mp4",
+            img_path=img_path,
+            model_name="kling-v1",
+        )
+
+        assert captured["model_name"] == "kling-v1"
+        assert captured["img_url"].startswith("data:image/")
+        assert ";base64," in captured["img_url"]
