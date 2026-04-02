@@ -39,14 +39,6 @@ def is_object_key(value: str) -> bool:
         == MEDIA_REF_OBJECT_KEY
     )
 
-
-
-
-
-
-
-
-
 def is_local_path(value: str) -> bool:
     """Check if a string is a local file path (relative or absolute)."""
     return (

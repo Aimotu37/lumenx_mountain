@@ -17,6 +17,7 @@ LOCAL_MEDIA_PREFIXES = (
 MEDIA_REF_LOCAL_PATH = "local_path"
 MEDIA_REF_OBJECT_KEY = "object_key"
 MEDIA_REF_REMOTE_URL = "remote_url"
+MEDIA_REF_BLOB_URL = "blob_url"
 MEDIA_REF_DATA_URI = "data_uri"
 MEDIA_REF_UNKNOWN = "unknown"
 
@@ -62,7 +63,10 @@ def classify_media_ref(
     if raw.startswith("data:"):
         return MEDIA_REF_DATA_URI
 
-    if raw.startswith(("http://", "https://", "blob:")):
+    if raw.startswith("blob:"):
+        return MEDIA_REF_BLOB_URL
+
+    if raw.startswith(("http://", "https://")):
         return MEDIA_REF_REMOTE_URL
 
     output_root = _output_root(project_root)
@@ -106,7 +110,7 @@ def resolve_local_media_path(value: str, *, project_root: Optional[str] = None) 
 
 
 def is_remote_media_ref(value: str) -> bool:
-    return classify_media_ref(value) == MEDIA_REF_REMOTE_URL
+    return classify_media_ref(value) in {MEDIA_REF_REMOTE_URL, MEDIA_REF_BLOB_URL}
 
 
 def is_stable_project_media_ref(value: str) -> bool:
