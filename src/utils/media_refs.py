@@ -71,7 +71,13 @@ def classify_media_ref(
 
     output_root = _output_root(project_root)
     if os.path.isabs(raw):
-        return MEDIA_REF_LOCAL_PATH if _is_under(Path(raw), output_root) else MEDIA_REF_UNKNOWN
+    # 优先识别为 output/ 下的本地路径
+        if _is_under(Path(raw), output_root):
+            return MEDIA_REF_LOCAL_PATH
+    # 兼容系统临时目录、其他绝对路径——只要文件存在就当本地路径
+        if os.path.isfile(raw):
+            return MEDIA_REF_LOCAL_PATH
+        return MEDIA_REF_UNKNOWN
 
     relative = raw.lstrip("/")
     if relative.startswith(LOCAL_MEDIA_PREFIXES):
@@ -97,7 +103,13 @@ def resolve_local_media_path(value: str, *, project_root: Optional[str] = None) 
 
     if os.path.isabs(raw):
         abs_path = Path(raw).resolve()
-        return str(abs_path) if _is_under(abs_path, output_root) else None
+        # 优先验证在 output/ 下
+        if _is_under(abs_path, output_root):
+            return str(abs_path)
+        # 兼容系统临时目录、其他存在的本地文件
+        if os.path.isfile(abs_path):
+            return str(abs_path)
+        return None
 
     relative = raw.lstrip("/")
     if relative.startswith("output/"):
